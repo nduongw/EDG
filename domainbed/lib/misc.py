@@ -69,16 +69,14 @@ def np_encoder(object):
     if isinstance(object, np.generic):
         return object.item()
 
-def get_score(results, test_envs, metric_key="acc"):
+def get_score(results, domain_name, test_envs, metric_key="acc"):
     val_env_keys = []
-    for i in itertools.count():
-        acc_key = f'env{i}_out_' + metric_key
+    for i in range(len(domain_name)):
+        acc_key = f'{domain_name[i]} test_' + metric_key
         if acc_key in results:
             if i not in test_envs:
                 val_env_keys.append(acc_key)
-        else:
-            break
-    assert i > 0
+
     return np.mean([results[key] for key in val_env_keys])
 
 class MergeDataset(torch.utils.data.Dataset):

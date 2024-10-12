@@ -8,6 +8,8 @@ import random
 import sys
 import time
 import math
+from tqdm import tqdm
+import wandb
 
 import numpy as np
 import PIL
@@ -20,7 +22,6 @@ from domainbed import hparams_registry
 from domainbed import algorithms
 from domainbed.lib import misc
 from domainbed.lib.fast_data_loader import InfiniteDataLoader, FastDataLoader
-
 
 def main(args):
     os.makedirs(args.output_dir, exist_ok=True)
@@ -62,10 +63,10 @@ def main(args):
         device = "cpu"
 
     if args.dataset in vars(datasets):
-        dataset = vars(datasets)[args.dataset](args.data_dir, args.test_envs, hparams)
+        dataset = vars(datasets)[args.dataset](args.data_dir, args.train_envs, args.test_envs, hparams)
     else:
         raise NotImplementedError
-
+    
     # Split each env into an 'in-split' and an 'out-split'. We'll train on
     # each in-split except the test envs, and evaluate on all splits.
     in_splits = []
@@ -76,23 +77,41 @@ def main(args):
             misc.seed_hash(args.trial_seed, env_i))
         in_splits.append(in_)
         out_splits.append(out)
+
     train_loaders = [InfiniteDataLoader(
         dataset=env,
         weights=None,
         batch_size=hparams['batch_size'],
         num_workers=dataset.N_WORKERS)
         for i, env in enumerate(in_splits)
-        if i not in args.test_envs]
-    eval_loaders = [FastDataLoader(
-        dataset=env,
-        batch_size=64,
-        num_workers=dataset.N_WORKERS)
-        for env in in_splits + out_splits]
-    eval_loader_names = ['env{}_in'.format(i)
-        for i in range(len(in_splits))]
-    eval_loader_names += ['env{}_out'.format(i)
-        for i in range(len(out_splits))]
+        if (i not in args.test_envs) and (i in args.train_envs)]
+    
+    eval_loaders = []
+    for i in range(len(in_splits)):
+        if i in args.train_envs or i in args.test_envs:
+            eval_loaders.append(FastDataLoader(dataset=in_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
+            eval_loaders.append(FastDataLoader(dataset=out_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
 
+    eval_loader_names = [f'{dataset.ENVIRONMENTS[i]} valid'.format(i)
+        for i in range(len(in_splits)) if (i in args.test_envs) or (i in args.train_envs)]
+    eval_loader_names += [f'{dataset.ENVIRONMENTS[i]} test'.format(i)
+        for i in range(len(out_splits)) if (i in args.test_envs) or (i in args.train_envs)]
+    
+    train_domain = [dataset.ENVIRONMENTS[i] for i in range(len(dataset.ENVIRONMENTS)) if i in args.train_envs]
+    test_domain = [dataset.ENVIRONMENTS[i] for i in range(len(dataset.ENVIRONMENTS)) if i in args.test_envs]
+    
+    if args.wandb:
+        tracker = wandb.init(
+            project = 'EDG',
+            entity = 'aiotlab',
+            config = args,
+            group = f'{args.dataset}',
+            name = f'Train={train_domain}_Test={test_domain}',
+            job_type = f'{args.algorithm}'
+        )
+        args.tracker = tracker
+
+    print(f'Len of train loader: {len(train_loaders)} | Len of eval loaders: {len(eval_loaders)}')
     dict_featurizers_aux = {}
     if args.aux_dir not in ["", "none"]:
         if args.fusing_range >= 0:
@@ -138,12 +157,22 @@ def main(args):
 
     best_score = -float("inf")
     last_results_keys = None
-    for step in range(0, n_steps):
+    step = 0
+    progress_bar = tqdm(range(n_steps), desc=f"Epoch {step}/{n_steps}")
+    for step in progress_bar:
         step_start_time = time.time()
         minibatches_device = [(x.to(device), y.to(device)) for x,y in next(train_minibatches_iterator)]
         step_vals = algorithm.update(minibatches_device)
         checkpoint_vals['step_time'].append(time.time() - step_start_time)
 
+        # print(f'Training loss: {step_vals["loss"]}')
+        if args.wandb:
+            tracker.log({
+                'training loss': step_vals["loss"] 
+            }, step=step)
+            
+        progress_bar.set_postfix(loss=step_vals["loss"])
+            
         for key, val in step_vals.items():
             checkpoint_vals[key].append(val)
 
@@ -159,26 +188,30 @@ def main(args):
             for name, loader, in zip(eval_loader_names, eval_loaders):
                 acc = misc.accuracy(algorithm, loader, device)
                 results[name+'_acc'] = acc
-
+                print(f'\n{name} accuracy: {acc * 100:.2f}')
+                if args.wandb:
+                    tracker.log({
+                        f'{name} accuracy': acc * 100 
+                    }, step=step)
+            
             results['mem_gb'] = torch.cuda.max_memory_allocated() / (1024.*1024.*1024.)
-
             results_keys = sorted(results.keys())
-            if results_keys != last_results_keys:
-                misc.print_row(results_keys, colwidth=12)
-                last_results_keys = results_keys
-            misc.print_row([results[key] for key in results_keys],
-                colwidth=12)
+            # if results_keys != last_results_keys:
+            #     misc.print_row(results_keys, colwidth=12)
+            #     last_results_keys = results_keys
+            # misc.print_row([results[key] for key in results_keys],
+            #     colwidth=12)
 
             results.update({
                 'hparams': hparams,
                 'args': vars(args)
             })
 
-            with open(os.path.join(args.output_dir, 'results.jsonl'), 'a') as f:
+            with open(os.path.join(args.output_dir, 'results.json'), 'a') as f:
                 f.write(json.dumps(results, sort_keys=True, default=misc.np_encoder) + "\n")
 
             ## DiWA ##
-            current_score = misc.get_score(results, args.test_envs)
+            current_score = misc.get_score(results, dataset.ENVIRONMENTS, args.test_envs)
             if current_score > best_score:
                 best_score = current_score
                 print(f"Saving new best score at step: {step} at path: model_best.pkl")
@@ -196,10 +229,12 @@ def main(args):
     algorithm.cpu()
 
 def parse_args(raw_args=None):
-    parser = argparse.ArgumentParser(description='Domain generalization')
+    parser = argparse.ArgumentParser(description='Ensemble Domain generalization')
+    parser.add_argument('--wandb', type=int, default=1)
     parser.add_argument('--data_dir', type=str)
     parser.add_argument('--output_dir', type=str, required=True)
     parser.add_argument('--dataset', type=str)
+    parser.add_argument('--train_envs', type=int, nargs='+', default=[])
     parser.add_argument('--test_envs', type=int, nargs='+', default=[])
     parser.add_argument('--algorithm', type=str, default="ERM")
     parser.add_argument('--hparams_seed', type=int, default=0,

@@ -174,7 +174,7 @@ class RotatedMNIST(MultipleEnvironmentMNIST):
 
 
 class MultipleEnvironmentImageFolder(MultipleDomainDataset):
-    def __init__(self, root, test_envs, augment, hparams):
+    def __init__(self, root, train_envs, test_envs, augment, hparams):
         super().__init__()
         environments = [f.name for f in os.scandir(root) if f.is_dir()]
         environments = sorted(environments)
@@ -196,11 +196,10 @@ class MultipleEnvironmentImageFolder(MultipleDomainDataset):
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-
         self.datasets = []
         for i, environment in enumerate(environments):
 
-            if augment and (i not in test_envs):
+            if augment and (i not in test_envs) and (i in train_envs):
                 env_transform = augment_transform
             else:
                 env_transform = transform
@@ -217,45 +216,45 @@ class MultipleEnvironmentImageFolder(MultipleDomainDataset):
 class VLCS(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 50
     ENVIRONMENTS = ["C", "L", "S", "V"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "VLCS/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 class PACS(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 100
     ENVIRONMENTS = ["A", "C", "P", "S"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "PACS/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 class DomainNet(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 500
     N_STEPS = 15001 # DomainNet requires more training steps, as previously observed in SWAD, MA or DiWA
     ENVIRONMENTS = ["clip", "info", "paint", "quick", "real", "sketch"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "domain_net/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 class OfficeHome(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 100
     ENVIRONMENTS = ["A", "C", "P", "R"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "office_home/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 class TerraIncognita(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 100
     ENVIRONMENTS = ["L100", "L38", "L43", "L46"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "terra_incognita/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 class SVIRO(MultipleEnvironmentImageFolder):
     CHECKPOINT_FREQ = 300
     ENVIRONMENTS = ["aclass", "escape", "hilux", "i3", "lexus", "tesla", "tiguan", "tucson", "x5", "zoe"]
-    def __init__(self, root, test_envs, hparams):
+    def __init__(self, root, train_envs, test_envs, hparams):
         self.dir = os.path.join(root, "sviro/")
-        super().__init__(self.dir, test_envs, hparams['data_augmentation'], hparams)
+        super().__init__(self.dir, train_envs, test_envs, hparams['data_augmentation'], hparams)
 
 
 class WILDSEnvironment:
