@@ -85,20 +85,18 @@ def main(args):
         num_workers=dataset.N_WORKERS)
         for i, env in enumerate(in_splits)
         if (i not in args.test_envs) and (i in args.train_envs)]
-    
     eval_loaders = []
     for i in range(len(in_splits)):
         if i in args.train_envs or i in args.test_envs:
-            eval_loaders.append(FastDataLoader(dataset=in_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
-            eval_loaders.append(FastDataLoader(dataset=out_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
+            eval_loaders.append(FastDataLoader(dataset=in_splits[i-1], batch_size=64, num_workers=dataset.N_WORKERS))
+            eval_loaders.append(FastDataLoader(dataset=out_splits[i-1], batch_size=64, num_workers=dataset.N_WORKERS))
 
     eval_loader_names = [f'{dataset.ENVIRONMENTS[i]} valid'.format(i)
         for i in range(len(in_splits)) if (i in args.test_envs) or (i in args.train_envs)]
     eval_loader_names += [f'{dataset.ENVIRONMENTS[i]} test'.format(i)
         for i in range(len(out_splits)) if (i in args.test_envs) or (i in args.train_envs)]
-    
-    train_domain = [dataset.ENVIRONMENTS[i] for i in range(len(dataset.ENVIRONMENTS)) if i in args.train_envs]
-    test_domain = [dataset.ENVIRONMENTS[i] for i in range(len(dataset.ENVIRONMENTS)) if i in args.test_envs]
+    train_domain = [dataset.ENVIRONMENTS[i] for i in args.train_envs]
+    test_domain = [dataset.ENVIRONMENTS[i] for i in args.test_envs]
     
     if args.wandb:
         tracker = wandb.init(

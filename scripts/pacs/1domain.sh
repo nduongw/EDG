@@ -2,30 +2,30 @@ CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
        --data_dir ./domainbed/DATA/ \
        --algorithm ERM \
        --dataset PACS \
-       --train_env 1 \
-       --test_env 2 3 4 \
+       --train_envs 0 \
+       --test_envs 1 2 3 \
        --output_dir ./domainbed/output/
 
 CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
        --data_dir ./domainbed/DATA/ \
        --algorithm ERM \
        --dataset PACS \
-       --train_env 2 \
-       --test_env 1 3 4 \
+       --train_envs 1 \
+       --test_envs 0 2 3 \
        --output_dir ./domainbed/output/
 
 CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
        --data_dir ./domainbed/DATA/ \
        --algorithm ERM \
        --dataset PACS \
-       --train_env 3 \
-       --test_env 1 2 4 \
+       --train_envs 2 \
+       --test_envs 0 1 3 \
        --output_dir ./domainbed/output/
 
 CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
        --data_dir ./domainbed/DATA/ \
        --algorithm ERM \
        --dataset PACS \
-       --train_env 4 \
-       --test_env 1 2 3 \
+       --train_envs 3 \
+       --test_envs 0 1 2 \
        --output_dir ./domainbed/output/

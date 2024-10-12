@@ -76,7 +76,6 @@ def get_score(results, domain_name, test_envs, metric_key="acc"):
         if acc_key in results:
             if i not in test_envs:
                 val_env_keys.append(acc_key)
-
     return np.mean([results[key] for key in val_env_keys])
 
 class MergeDataset(torch.utils.data.Dataset):
