@@ -88,8 +88,8 @@ def main(args):
     eval_loaders = []
     for i in range(len(in_splits)):
         if i in args.train_envs or i in args.test_envs:
-            eval_loaders.append(FastDataLoader(dataset=in_splits[i-1], batch_size=64, num_workers=dataset.N_WORKERS))
-            eval_loaders.append(FastDataLoader(dataset=out_splits[i-1], batch_size=64, num_workers=dataset.N_WORKERS))
+            eval_loaders.append(FastDataLoader(dataset=in_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
+            eval_loaders.append(FastDataLoader(dataset=out_splits[i], batch_size=64, num_workers=dataset.N_WORKERS))
 
     eval_loader_names = [f'{dataset.ENVIRONMENTS[i]} valid'.format(i)
         for i in range(len(in_splits)) if (i in args.test_envs) or (i in args.train_envs)]

@@ -3,7 +3,7 @@ CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
        --algorithm ERM \
        --dataset PACS \
        --train_envs 0 1 \
-       --test_envs 2 \
+       --test_envs 2 3 \
        --output_dir ./domainbed/output/
 
 CUDA_VISIBLE_DEVICES=1 python3 -m domainbed.scripts.train\
