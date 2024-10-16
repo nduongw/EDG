@@ -56,7 +56,7 @@ def main(args):
     torch.manual_seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
+    
     if torch.cuda.is_available():
         device = "cuda"
     else:
@@ -71,6 +71,7 @@ def main(args):
     # each in-split except the test envs, and evaluate on all splits.
     in_splits = []
     out_splits = []
+    import pdb; pdb.set_trace()
     for env_i, env in enumerate(dataset):
         out, in_ = misc.split_dataset(env,
             int(len(env)*args.holdout_fraction),
